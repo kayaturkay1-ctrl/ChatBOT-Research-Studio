@@ -1,64 +1,7 @@
 # Research Studio
-
 ## Verified RAG, Source-Grounded Answers, and Interactive PDF Intelligence
 
 > A production-oriented document intelligence system built around hierarchical RAG, multilingual semantic retrieval, verified sentence-level citations, real PDF evidence mapping, multi-user shared knowledge, streaming generation, and a custom Streamlit interface.
-
-
-
-\---
-
-
-
-\## Architecture at a Glance
-
-
-
-The system is composed of several tightly integrated layers: a shared multi-user knowledge base, hierarchical semantic retrieval, streaming language-model execution, a verification-oriented citation engine, and a custom low-latency Streamlit frontend.
-
-
-
-The diagrams below show the architecture from three complementary perspectives.
-
-
-
-\### 1. Complete System Architecture
-
-
-
-This diagram provides the high-level view of the entire application: isolated browser sessions, the shared knowledge layer, hierarchical retrieval, language-model generation, citation verification, real PDF evidence rendering, and persistent document storage.
-
-
-
-\[!\[Research Studio System Architecture](assets/system-architecture.png)](assets/system-architecture.png)
-
-
-
-\### 2. Verified RAG \& Citation Pipeline
-
-
-
-This diagram follows a document from ingestion and chunking through E5 embedding, FAISS retrieval, model generation, citation verification, and finally the evidence presented to the user.
-
-
-
-\[!\[Research Studio Verified RAG and Citation Pipeline](assets/verified-rag-pipeline.png)](assets/verified-rag-pipeline.png)
-
-
-
-\### 3. Multi-User Runtime \& Streaming Lifecycle
-
-
-
-This diagram focuses on runtime behavior: per-browser session isolation, the shared global PDF/index state, immutable document generations, leases, command acknowledgement, incremental synchronization, streaming, and progressive source rendering.
-
-
-
-\[!\[Research Studio Multi-User Runtime and Streaming Lifecycle](assets/multi-user-runtime.png)](assets/multi-user-runtime.png)
-
-
-
-\---
 
 Research Studio is not a conventional "upload a PDF and ask questions" demo.
 
@@ -66,72 +9,97 @@ It combines a **hierarchical retrieval engine**, a **shared multi-user knowledge
 
 The project started as a simpler Parent–Child RAG assistant and evolved into a much larger research interface with explicit state management, source lifecycle handling, concurrency controls, incremental synchronization, verified inline citations, and low-latency UI behavior.
 
-\---
+---
+
+## Architecture Overview
+
+<p align="center">
+  <img src="./assets/system-architecture.png" alt="Research Studio — System Architecture" width="100%">
+</p>
+
+<p align="center"><em>Complete system architecture — browser sessions, shared knowledge, hierarchical retrieval, model generation, citation verification, real PDF evidence, and persistent storage.</em></p>
+
+### Verified RAG & Citation Pipeline
+
+<p align="center">
+  <img src="./assets/verified-rag-pipeline.png" alt="Research Studio — Verified RAG and Citation Pipeline" width="100%">
+</p>
+
+<p align="center"><em>End-to-end evidence pipeline — from PDF ingestion and E5/FAISS retrieval to model generation, citation verification, and source-grounded output.</em></p>
+
+### Multi-User Runtime & Streaming Lifecycle
+
+<p align="center">
+  <img src="./assets/multi-user-runtime.png" alt="Research Studio — Multi-User Runtime and Streaming Lifecycle" width="100%">
+</p>
+
+<p align="center"><em>Runtime architecture — private browser sessions, shared document generations, leases, command acknowledgement, incremental synchronization, and responsive source rendering.</em></p>
+
+---
 
 ## Highlights
 
-* **Hierarchical Parent–Child RAG**
+- **Hierarchical Parent–Child RAG**
+  - Small child chunks are used for precise vector retrieval.
+  - Larger parent chunks are sent to the language model to preserve context.
+  - Current index format is based on approximately **1000-character parent chunks** and **250-character child chunks**.
 
-  * Small child chunks are used for precise vector retrieval.
-  * Larger parent chunks are sent to the language model to preserve context.
-  * Current index format is based on approximately **1000-character parent chunks** and **250-character child chunks**.
-* **Multilingual semantic retrieval**
+- **Multilingual semantic retrieval**
+  - Uses `intfloat/multilingual-e5-base` through Sentence Transformers.
+  - Uses FAISS `IndexFlatIP` for normalized inner-product / cosine-style retrieval.
+  - One shared E5 model is reused across the server process.
 
-  * Uses `intfloat/multilingual-e5-base` through Sentence Transformers.
-  * Uses FAISS `IndexFlatIP` for normalized inner-product / cosine-style retrieval.
-  * One shared E5 model is reused across the server process.
-* **Two answer paths**
+- **Two answer paths**
+  - **GPT-4o-mini** for a lightweight document-focused path.
+  - **GPT-5.6 Luna** through the Responses API with optional built-in web search.
+  - Response detail controls influence verbosity and reasoning configuration.
 
-  * **GPT-4o-mini** for a lightweight document-focused path.
-  * **GPT-5.6 Luna** through the Responses API with optional built-in web search.
-  * Response detail controls influence verbosity and reasoning configuration.
-* **Verified inline citations**
+- **Verified inline citations**
+  - Model-produced citation metadata is treated as a candidate, not as trusted truth.
+  - Claims, quotes, parent IDs, table rows, values, dates, conditions, and real PDF locations are checked before a citation is accepted.
+  - Ambiguous evidence is rejected instead of being force-matched.
 
-  * Model-produced citation metadata is treated as a candidate, not as trusted truth.
-  * Claims, quotes, parent IDs, table rows, values, dates, conditions, and real PDF locations are checked before a citation is accepted.
-  * Ambiguous evidence is rejected instead of being force-matched.
-* **Real PDF evidence viewer**
+- **Real PDF evidence viewer**
+  - Opens the actual rendered PDF page.
+  - Highlights a quote only when its location can be resolved safely.
+  - Avoids broad or misleading highlights when exact evidence cannot be verified.
+  - Includes document navigation, section mapping, and used-section indicators.
 
-  * Opens the actual rendered PDF page.
-  * Highlights a quote only when its location can be resolved safely.
-  * Avoids broad or misleading highlights when exact evidence cannot be verified.
-  * Includes document navigation, section mapping, and used-section indicators.
-* **Answer → Source spatial interaction**
+- **Answer → Source spatial interaction**
+  - Source exploration is integrated into the answer rather than treated as a detached reference list.
+  - Source panels use shared-element / liquid-style transitions.
+  - Inline citation focus can move directly to the corresponding PDF evidence.
 
-  * Source exploration is integrated into the answer rather than treated as a detached reference list.
-  * Source panels use shared-element / liquid-style transitions.
-  * Inline citation focus can move directly to the corresponding PDF evidence.
-* **Shared multi-user knowledge base**
+- **Shared multi-user knowledge base**
+  - All browser sessions can use one shared active PDF / FAISS index.
+  - Chat history, runtime state, photos, and UI state remain session-specific.
+  - New document generations are swapped atomically.
+  - In-flight chats can continue using the generation they started with.
 
-  * All browser sessions can use one shared active PDF / FAISS index.
-  * Chat history, runtime state, photos, and UI state remain session-specific.
-  * New document generations are swapped atomically.
-  * In-flight chats can continue using the generation they started with.
-* **Streaming-first architecture**
+- **Streaming-first architecture**
+  - Optimistic local rendering before server acknowledgement.
+  - Incremental snapshots instead of retransmitting the entire application state.
+  - Runtime patches, row patches, document references, and command acknowledgements.
+  - Streaming Markdown rendering with sanitized block reuse.
 
-  * Optimistic local rendering before server acknowledgement.
-  * Incremental snapshots instead of retransmitting the entire application state.
-  * Runtime patches, row patches, document references, and command acknowledgements.
-  * Streaming Markdown rendering with sanitized block reuse.
-* **Low-latency citation lifecycle**
+- **Low-latency citation lifecycle**
+  - Source lists can become available before expensive sentence/PDF citation finalization finishes.
+  - Inline citation DOM work is deferred and cooperatively processed in small browser-time budgets.
+  - Out-of-order runtime updates are guarded against stale state regression.
 
-  * Source lists can become available before expensive sentence/PDF citation finalization finishes.
-  * Inline citation DOM work is deferred and cooperatively processed in small browser-time budgets.
-  * Out-of-order runtime updates are guarded against stale state regression.
-* **Developer telemetry**
+- **Developer telemetry**
+  - Retrieval latency.
+  - Embedding latency.
+  - First-token latency.
+  - Total request time.
+  - Retrieved parent scores.
+  - Token / cost diagnostics.
+  - Web-search activity.
+  - Citation diagnostics and source coverage.
 
-  * Retrieval latency.
-  * Embedding latency.
-  * First-token latency.
-  * Total request time.
-  * Retrieved parent scores.
-  * Token / cost diagnostics.
-  * Web-search activity.
-  * Citation diagnostics and source coverage.
+---
 
-\---
-
-# 1\. Why This Project Exists
+# 1. Why This Project Exists
 
 Most small RAG applications follow a straightforward pipeline:
 
@@ -146,109 +114,64 @@ PDF
 
 That is useful, but it leaves several difficult questions unanswered:
 
-* Did the model actually use the source it claims to use?
-* Does the cited quote exist in the selected parent chunk?
-* Does it exist on the real PDF page?
-* Is the match unique, or does the same phrase appear multiple times?
-* Does a number, date, field, price, or condition in the answer conflict with the evidence?
-* Can a table value be accidentally attached to a different row with the same number?
-* What happens if the PDF is replaced while another user is still generating an answer?
-* What happens if a browser command is delivered but the acknowledgement is lost?
-* How do you avoid duplicating an API call after an uncertain timeout?
-* How do you stream a long answer without repeatedly rebuilding the entire DOM?
-* How do you show sources quickly without waiting for expensive PDF-coordinate verification?
-* How do you keep a shared embedding model from being loaded once per user?
-* How do you preserve responsiveness when multiple sessions are active?
+- Did the model actually use the source it claims to use?
+- Does the cited quote exist in the selected parent chunk?
+- Does it exist on the real PDF page?
+- Is the match unique, or does the same phrase appear multiple times?
+- Does a number, date, field, price, or condition in the answer conflict with the evidence?
+- Can a table value be accidentally attached to a different row with the same number?
+- What happens if the PDF is replaced while another user is still generating an answer?
+- What happens if a browser command is delivered but the acknowledgement is lost?
+- How do you avoid duplicating an API call after an uncertain timeout?
+- How do you stream a long answer without repeatedly rebuilding the entire DOM?
+- How do you show sources quickly without waiting for expensive PDF-coordinate verification?
+- How do you keep a shared embedding model from being loaded once per user?
+- How do you preserve responsiveness when multiple sessions are active?
 
 Research Studio is an attempt to solve these problems as part of the application architecture rather than leaving them as edge cases.
 
-\---
+---
 
-# 2\. System Architecture
+# 2. System Architecture
 
-```mermaid
-flowchart TD
-    U1\[Browser Session A]
-    U2\[Browser Session B]
-    U3\[Browser Session C]
 
-    UI\[Custom Streamlit Component<br/>HTML + CSS + JavaScript]
-    S1\[Session A]
-    S2\[Session B]
-    S3\[Session C]
-
-    KB\[SharedKnowledgeBase]
-    E5\[Shared multilingual-e5-base]
-    F\[FAISS IndexFlatIP]
-    PDF\[Active PDF Generation]
-    DS\[DocumentStore]
-    LLM\[OpenAI Models]
-    CIT\[Citation Verification Engine]
-    VIEW\[PDF Evidence / Page Renderer]
-
-    U1 --> UI
-    U2 --> UI
-    U3 --> UI
-
-    UI --> S1
-    UI --> S2
-    UI --> S3
-
-    S1 --> KB
-    S2 --> KB
-    S3 --> KB
-
-    KB --> E5
-    KB --> F
-    KB --> PDF
-    KB --> DS
-
-    S1 --> LLM
-    S2 --> LLM
-    S3 --> LLM
-
-    LLM --> CIT
-    PDF --> CIT
-    CIT --> VIEW
-    CIT --> UI
-    VIEW --> UI
-```
+The complete architecture is shown in the **Architecture Overview** above. The implementation intentionally separates shared document state from per-browser conversational state while connecting retrieval, generation, citation verification, and real PDF evidence through a single runtime.
 
 The architecture intentionally separates **shared document state** from **per-browser conversational state**.
 
 ### Shared across users
 
-* Active PDF
-* FAISS index
-* Parent / child mappings
-* PDF source metadata
-* Shared E5 model
-* Persistent index package
-* Document generation lifecycle
+- Active PDF
+- FAISS index
+- Parent / child mappings
+- PDF source metadata
+- Shared E5 model
+- Persistent index package
+- Document generation lifecycle
 
 ### Isolated per browser session
 
-* Conversation history
-* Runtime telemetry
-* Current request / cancellation state
-* Photos
-* UI row state
-* Token / request diagnostics
-* Temporary files
-* Per-request model namespace
+- Conversation history
+- Runtime telemetry
+- Current request / cancellation state
+- Photos
+- UI row state
+- Token / request diagnostics
+- Temporary files
+- Per-request model namespace
 
 This allows many users to ask independent questions while sharing one active document context.
 
-\---
+---
 
-# 3\. Hierarchical RAG Pipeline
+# 3. Hierarchical RAG Pipeline
 
 Research Studio uses a **Parent–Child retrieval strategy**.
 
 The goal is to combine:
 
-* **small retrieval units** for search precision, and
-* **larger context units** for coherent language-model input.
+- **small retrieval units** for search precision, and
+- **larger context units** for coherent language-model input.
 
 ```text
 PDF
@@ -295,9 +218,9 @@ PDF
 
 This approach avoids forcing the system to choose between retrieval precision and context size.
 
-\---
+---
 
-# 4\. Multilingual E5 + FAISS Retrieval
+# 4. Multilingual E5 + FAISS Retrieval
 
 The application uses:
 
@@ -320,18 +243,18 @@ That matters in a multi-user deployment because loading a transformer independen
 
 The embedding layer also includes:
 
-* bounded batching,
-* cancellation checks,
-* shared access coordination,
-* reusable embedding dimension detection,
-* preallocated NumPy output buffers,
-* ingestion progress reporting.
+- bounded batching,
+- cancellation checks,
+- shared access coordination,
+- reusable embedding dimension detection,
+- preallocated NumPy output buffers,
+- ingestion progress reporting.
 
 For large ingestion jobs, batches are written into a preallocated result matrix instead of collecting every batch in a second large temporary structure and concatenating later.
 
-\---
+---
 
-# 5\. Shared Knowledge Base and Immutable Document Generations
+# 5. Shared Knowledge Base and Immutable Document Generations
 
 One of the most important architectural changes from the original project is the introduction of a process-wide `SharedKnowledgeBase`.
 
@@ -381,9 +304,9 @@ If a generation has already been replaced, it is only physically cleaned up afte
 
 This makes document replacement safer for concurrent users.
 
-\---
+---
 
-# 6\. Global Document Mode
+# 6. Global Document Mode
 
 The currently active document is intentionally shared across sessions.
 
@@ -407,9 +330,9 @@ This is a deliberate behavior of the current application.
 
 The chat itself is still private to each browser session; only the active knowledge base is shared.
 
-\---
+---
 
-# 7\. Dual Model Paths
+# 7. Dual Model Paths
 
 Research Studio currently exposes two main answer paths.
 
@@ -428,31 +351,31 @@ Used through the Responses API.
 This path can use:
 
 ```text
-web\_search
+web_search
 ```
 
 when additional current information is needed.
 
 The application tracks real web-search call events during streaming and reports them in runtime telemetry rather than inferring web usage from answer text.
 
-\---
+---
 
-# 8\. Response Detail Controls
+# 8. Response Detail Controls
 
 The interface supports multiple answer-detail levels.
 
 The selected level can influence:
 
-* response verbosity,
-* reasoning configuration,
-* target answer detail,
-* runtime diagnostics.
+- response verbosity,
+- reasoning configuration,
+- target answer detail,
+- runtime diagnostics.
 
 This is not implemented as a purely visual setting; the selected mode is forwarded into the model request configuration.
 
-\---
+---
 
-# 9\. Conversation Memory
+# 9. Conversation Memory
 
 Conversation memory is session-specific.
 
@@ -470,9 +393,9 @@ Recent content can be forwarded without the same summarization step.
 
 The current UI keeps the recent conversation window bounded rather than allowing unbounded conversation context to grow forever.
 
-\---
+---
 
-# 10\. Streaming Runtime
+# 10. Streaming Runtime
 
 Generation is designed as a streaming lifecycle rather than a single blocking request.
 
@@ -494,9 +417,9 @@ Error and cancellation states are handled separately.
 
 Runtime telemetry is updated while the request is active, allowing the UI to display live retrieval, generation, source, and completion state.
 
-\---
+---
 
-# 11\. Bounded API Concurrency and Cancellation
+# 11. Bounded API Concurrency and Cancellation
 
 The model layer includes a server-wide bounded API semaphore.
 
@@ -508,9 +431,9 @@ Cancellation and timeout handling continue to apply while a request is waiting f
 
 The streaming layer also explicitly closes active streams and releases capacity in `finally` paths.
 
-\---
+---
 
-# 12\. Optimistic Send and Idempotent Commands
+# 12. Optimistic Send and Idempotent Commands
 
 The browser does not wait for a full Streamlit round trip before acknowledging the user's click visually.
 
@@ -546,9 +469,9 @@ Research Studio instead tracks the original command identity and attempts state 
 
 The server also remembers processed command IDs and suppresses duplicate execution.
 
-\---
+---
 
-# 13\. Incremental Snapshot Protocol
+# 13. Incremental Snapshot Protocol
 
 The custom component does not require the entire chat state to be serialized on every UI refresh.
 
@@ -557,29 +480,29 @@ The server maintains revision information and can return small delta messages.
 The transport can include:
 
 ```text
-runtime\_patch
-runtime\_removed
-rows\_patch
-row\_ids
+runtime_patch
+runtime_removed
+rows_patch
+row_ids
 ack
 revision
-base\_revision
+base_revision
 ```
 
 If nothing changed, the server can return a minimal heartbeat-like delta.
 
 This reduces repeated serialization of old chat history.
 
-\---
+---
 
-# 14\. Shared Document References
+# 14. Shared Document References
 
 PDF viewer descriptors can be large because they may include:
 
-* outline entries,
-* parent-to-section mappings,
-* page information,
-* source metadata.
+- outline entries,
+- parent-to-section mappings,
+- page information,
+- source metadata.
 
 Once a document descriptor is already known to the browser, repeated runtime records can refer to it through a lightweight document reference rather than deep-copying and retransmitting the full descriptor for every answer.
 
@@ -587,15 +510,15 @@ Conceptually:
 
 ```json
 {
-  "$document\_ref": "document-id"
+  "$document_ref": "document-id"
 }
 ```
 
 The browser resolves that reference against the descriptor it already holds.
 
-\---
+---
 
-# 15\. Streaming Markdown Rendering
+# 15. Streaming Markdown Rendering
 
 A growing Markdown answer is difficult to render efficiently.
 
@@ -603,17 +526,17 @@ Simply running the full answer through Markdown + sanitizer on every token batch
 
 Research Studio uses a streaming Markdown layer that:
 
-* parses the current CommonMark structure,
-* preserves correct list / table / link context,
-* reuses sanitized output for completed blocks,
-* bounds its cache by block count and total characters,
-* performs a final full render when generation completes.
+- parses the current CommonMark structure,
+- preserves correct list / table / link context,
+- reuses sanitized output for completed blocks,
+- bounds its cache by block count and total characters,
+- performs a final full render when generation completes.
 
 HTML input from model text is disabled and rendered output is sanitized with Bleach.
 
-\---
+---
 
-# 16\. Citation System: Model Output Is Not Trusted Automatically
+# 16. Citation System: Model Output Is Not Trusted Automatically
 
 The citation engine is one of the most important parts of the project.
 
@@ -621,9 +544,9 @@ The application does **not** assume that a citation is correct merely because th
 
 Model-authored citation metadata is treated as a proposal that must pass additional checks.
 
-\---
+---
 
-# 17\. Citation Verification Pipeline
+# 17. Citation Verification Pipeline
 
 A citation can be checked against several layers.
 
@@ -658,13 +581,13 @@ The verifier can consider the full table-row identity instead of attaching a cit
 
 Structured fields such as:
 
-* names,
-* birth dates,
-* birth places,
-* student IDs,
-* passport-related values,
-* visa-related values,
-* start dates,
+- names,
+- birth dates,
+- birth places,
+- student IDs,
+- passport-related values,
+- visa-related values,
+- start dates,
 
 can receive stricter value matching.
 
@@ -674,12 +597,12 @@ The system attempts to detect disagreement between an answer claim and the propo
 
 This is useful for claims involving:
 
-* quantities,
-* dates,
-* units,
-* prices,
-* conditions,
-* structured fields.
+- quantities,
+- dates,
+- units,
+- prices,
+- conditions,
+- structured fields.
 
 A semantically similar passage is not automatically treated as sufficient evidence when the actual value conflicts.
 
@@ -697,9 +620,9 @@ The document signature is checked so a citation is not validated against a diffe
 
 If multiple independent PDF locations satisfy the same candidate evidence and the system cannot identify a unique intended location, it prefers to reject the precise citation rather than display a misleading highlight.
 
-\---
+---
 
-# 18\. Citation v1 and v2 Paths
+# 18. Citation v1 and v2 Paths
 
 The project supports both model-authored citation records and a semantic fallback path.
 
@@ -717,9 +640,9 @@ Even here, semantic similarity alone is not enough.
 
 The resulting evidence still goes through conflict and PDF-location checks.
 
-\---
+---
 
-# 19\. Source Coverage Is Not a Confidence Score
+# 19. Source Coverage Is Not a Confidence Score
 
 The developer interface can report how many answer units received a source association.
 
@@ -739,9 +662,9 @@ does **not** mean:
 
 It only describes citation coverage under the application's matching rules.
 
-\---
+---
 
-# 20\. Early Source Publication
+# 20. Early Source Publication
 
 Source UX has its own lifecycle.
 
@@ -777,9 +700,9 @@ complete
 
 This improves perceived source latency without pretending that sentence-level verification is finished earlier than it really is.
 
-\---
+---
 
-# 21\. Deferred Citation DOM Work
+# 21. Deferred Citation DOM Work
 
 Installing many inline citation controls can become expensive in a long answer.
 
@@ -791,9 +714,9 @@ The current scheduler uses a small browser-time budget before yielding and sched
 
 This helps keep the interface responsive when restoring long conversations or installing many citations.
 
-\---
+---
 
-# 22\. Out-of-Order Runtime Protection
+# 22. Out-of-Order Runtime Protection
 
 Incremental systems can receive state updates in an unexpected order.
 
@@ -815,27 +738,27 @@ The frontend tracks per-answer state and rejects stale regressions so a late int
 
 Cancelled and errored requests are similarly protected from inappropriate resurrection by later stale events.
 
-\---
+---
 
-# 23\. Unicode-Safe Inline Citation Mapping
+# 23. Unicode-Safe Inline Citation Mapping
 
 Browser citation placement is more difficult than doing a basic JavaScript `indexOf()`.
 
 Research Studio's frontend normalization logic accounts for cases including:
 
-* Unicode normalization,
-* Turkish `ı / i`,
-* combining characters,
-* soft hyphens,
-* words broken across PDF-style line endings,
-* UTF-16 DOM offsets,
-* emoji / multi-code-unit characters.
+- Unicode normalization,
+- Turkish `ı / i`,
+- combining characters,
+- soft hyphens,
+- words broken across PDF-style line endings,
+- UTF-16 DOM offsets,
+- emoji / multi-code-unit characters.
 
 The normalizer maintains a mapping from normalized text positions back to original DOM positions so citation controls can be attached to the intended visible characters.
 
-\---
+---
 
-# 24\. Real PDF Evidence Viewer
+# 24. Real PDF Evidence Viewer
 
 Sources are not limited to text cards.
 
@@ -852,9 +775,9 @@ The page renderer:
 7. returns normalized highlight rectangles,
 8. displays the page in the source interface.
 
-\---
+---
 
-# 25\. No Misleading Highlight Fallback
+# 25. No Misleading Highlight Fallback
 
 A failed exact sentence citation is not automatically converted into a large generic passage highlight.
 
@@ -864,9 +787,9 @@ If a precise quote cannot be safely located, the UI can tell the user that the e
 
 A broader parent passage can still be shown when the user explicitly opens the passage itself, but it is not silently substituted for a failed sentence-level match.
 
-\---
+---
 
-# 26\. PDF Page Cache
+# 26. PDF Page Cache
 
 Rendering a PDF page to PNG repeatedly is expensive.
 
@@ -874,9 +797,9 @@ The backend keeps a small bounded page-image cache for repeated source explorati
 
 The cache is intentionally limited rather than allowing every visited page image to remain in memory indefinitely.
 
-\---
+---
 
-# 27\. Stale PDF Request Protection
+# 27. Stale PDF Request Protection
 
 Fast source navigation can create races:
 
@@ -892,25 +815,25 @@ Older responses are ignored when they no longer represent the current view.
 
 Pending page requests also have timeouts and are rejected when replaced by a newer navigation action.
 
-\---
+---
 
-# 28\. Document Navigator
+# 28. Document Navigator
 
 When structural information can be derived from the document, the source interface can display a document map.
 
 The navigator can:
 
-* list sections,
-* search section titles,
-* mark the current section,
-* mark sections used in generated answers,
-* jump directly to relevant PDF pages.
+- list sections,
+- search section titles,
+- mark the current section,
+- mark sections used in generated answers,
+- jump directly to relevant PDF pages.
 
 This turns the source panel into a small document exploration interface rather than a static bibliography.
 
-\---
+---
 
-# 29\. Answer → Source Spatial Transition
+# 29. Answer → Source Spatial Transition
 
 Opening a source changes the spatial relationship between the answer and evidence.
 
@@ -934,9 +857,9 @@ The goal is to make source verification feel like moving deeper into the same in
 
 Reduced-motion preferences are respected.
 
-\---
+---
 
-# 30\. Custom Streamlit Frontend
+# 30. Custom Streamlit Frontend
 
 The current UI is no longer a Gradio interface.
 
@@ -952,32 +875,32 @@ bridge.js
 
 These assets are embedded in `frontend.py`.
 
-At runtime, `component\_directory()` creates a content-addressed temporary component directory and writes the assets there atomically.
+At runtime, `component_directory()` creates a content-addressed temporary component directory and writes the assets there atomically.
 
 This means the repository does not require a separate Node/Vite build pipeline just to run the interface.
 
-\---
+---
 
-# 31\. Browser Bridge
+# 31. Browser Bridge
 
 The browser bridge handles communication between the custom component and Streamlit.
 
 Responsibilities include:
 
-* command queueing,
-* command acknowledgement,
-* retry / uncertain-delivery handling,
-* optimistic message state,
-* incremental snapshot application,
-* row reconciliation,
-* document-reference resolution,
-* runtime propagation.
+- command queueing,
+- command acknowledgement,
+- retry / uncertain-delivery handling,
+- optimistic message state,
+- incremental snapshot application,
+- row reconciliation,
+- document-reference resolution,
+- runtime propagation.
 
 This layer allows the UI to behave more like a persistent client application than a collection of disconnected Streamlit widgets.
 
-\---
+---
 
-# 32\. Incremental DOM Reconciliation
+# 32. Incremental DOM Reconciliation
 
 Streaming responses are not rendered by replacing the entire conversation tree every time new text arrives.
 
@@ -985,42 +908,42 @@ The frontend keeps stable message rows and reconciles updates.
 
 This is important for preserving:
 
-* citation DOM nodes,
-* hover state,
-* focus,
-* selection,
-* scroll behavior,
-* source state.
+- citation DOM nodes,
+- hover state,
+- focus,
+- selection,
+- scroll behavior,
+- source state.
 
 Frame-coalesced rendering also groups rapid state changes into browser animation frames.
 
-\---
+---
 
-# 33\. Developer Mode and Telemetry
+# 33. Developer Mode and Telemetry
 
 The interface includes a developer-oriented inspector.
 
 Depending on the request and model path, telemetry can include:
 
-* query embedding time,
-* FAISS search time,
-* retrieved parent count,
-* retrieval similarity information,
-* first-token latency,
-* total latency,
-* web-search calls,
-* token usage,
-* estimated request cost,
-* model / detail configuration,
-* request payload inspection,
-* citation diagnostics,
-* source coverage.
+- query embedding time,
+- FAISS search time,
+- retrieved parent count,
+- retrieval similarity information,
+- first-token latency,
+- total latency,
+- web-search calls,
+- token usage,
+- estimated request cost,
+- model / detail configuration,
+- request payload inspection,
+- citation diagnostics,
+- source coverage.
 
 This makes the application useful not only as a chatbot but also as an environment for studying RAG behavior.
 
-\---
+---
 
-# 34\. Document Persistence
+# 34. Document Persistence
 
 The shared index can be stored as a single managed archive containing:
 
@@ -1035,26 +958,26 @@ The manifest contains integrity information for the stored components.
 
 The store validates:
 
-* expected archive members,
-* total archive size,
-* SHA-256 hashes,
-* index-format fingerprint.
+- expected archive members,
+- total archive size,
+- SHA-256 hashes,
+- index-format fingerprint.
 
 Writes are performed through a temporary file and finalized with an atomic `os.replace()` after the archive has been flushed.
 
 This prevents a partially written package from replacing the last valid index.
 
-\---
+---
 
-# 35\. Index Compatibility
+# 35. Index Compatibility
 
 The persistence format includes a version / model fingerprint.
 
 If the embedding model or index format changes, an old stored package can be recognized as requiring reindexing rather than being silently treated as compatible.
 
-\---
+---
 
-# 36\. Markdown Safety
+# 36. Markdown Safety
 
 Generated Markdown is rendered with HTML disabled.
 
@@ -1062,29 +985,29 @@ The produced HTML is sanitized before being inserted into the chat interface.
 
 Allowed elements are intentionally limited to the formatting needed for normal answers, including:
 
-* paragraphs,
-* headings,
-* code,
-* tables,
-* lists,
-* emphasis,
-* links,
-* blockquotes.
+- paragraphs,
+- headings,
+- code,
+- tables,
+- lists,
+- emphasis,
+- links,
+- blockquotes.
 
-\---
+---
 
-# 37\. File Handling
+# 37. File Handling
 
 The transport supports chunked file upload rather than depending on one giant component message.
 
 The upload protocol tracks:
 
-* upload ID,
-* expected total size,
-* current byte offset,
-* allowed file type,
-* ordered chunks,
-* completion state.
+- upload ID,
+- expected total size,
+- current byte offset,
+- allowed file type,
+- ordered chunks,
+- completion state.
 
 Out-of-order or oversized chunks are rejected.
 
@@ -1092,9 +1015,9 @@ The current application-level file limit is approximately **20 MB**.
 
 PDF ingestion also supports a configurable maximum page count.
 
-\---
+---
 
-# 38\. Photo Context
+# 38. Photo Context
 
 A session can include an image / photo as part of the current conversational request.
 
@@ -1102,36 +1025,36 @@ Photo state is user-specific and is not stored in the shared document knowledge 
 
 Temporary image data is pruned so old session attachments do not grow without bounds.
 
-\---
+---
 
-# 39\. Performance-Oriented Design
+# 39. Performance-Oriented Design
 
 The project contains a number of optimizations that are easy to miss from the UI alone.
 
-|Area|Optimization|
-|-|-|
-|Model loading|One shared E5 instance per process|
-|Embeddings|Bounded batches + preallocated output|
-|PDF updates|Build new generation before activation|
-|Active chats|Lease old generation until request completes|
-|API streams|Bounded server-wide concurrency|
-|Streaming|Batched visible deltas|
-|Streamlit|Fragment refresh instead of full-app rerun|
-|Transport|Incremental state patches|
-|Document metadata|Browser-side document references|
-|Markdown|Cache completed sanitized blocks|
-|Send UX|Optimistic local message rendering|
-|Browser rendering|Frame-coalesced updates|
-|Citations|Early source publication|
-|Citation DOM|Deferred cooperative installation|
-|PDF pages|Bounded raster cache|
-|PDF navigation|Request IDs + stale-response rejection|
-|Commands|ID-based deduplication / ACK recovery|
-|Persistence|Atomic archive replacement|
+| Area | Optimization |
+|---|---|
+| Model loading | One shared E5 instance per process |
+| Embeddings | Bounded batches + preallocated output |
+| PDF updates | Build new generation before activation |
+| Active chats | Lease old generation until request completes |
+| API streams | Bounded server-wide concurrency |
+| Streaming | Batched visible deltas |
+| Streamlit | Fragment refresh instead of full-app rerun |
+| Transport | Incremental state patches |
+| Document metadata | Browser-side document references |
+| Markdown | Cache completed sanitized blocks |
+| Send UX | Optimistic local message rendering |
+| Browser rendering | Frame-coalesced updates |
+| Citations | Early source publication |
+| Citation DOM | Deferred cooperative installation |
+| PDF pages | Bounded raster cache |
+| PDF navigation | Request IDs + stale-response rejection |
+| Commands | ID-based deduplication / ACK recovery |
+| Persistence | Atomic archive replacement |
 
-\---
+---
 
-# 40\. Project Structure
+# 40. Project Structure
 
 ```text
 .
@@ -1151,14 +1074,14 @@ Streamlit entry point.
 
 Responsibilities include:
 
-* Streamlit page setup,
-* component declaration,
-* cached `DocumentStore`,
-* cached global `SharedKnowledgeBase`,
-* per-browser `Session`,
-* component refresh fragment,
-* secrets / API key loading,
-* hot-reload schema invalidation.
+- Streamlit page setup,
+- component declaration,
+- cached `DocumentStore`,
+- cached global `SharedKnowledgeBase`,
+- per-browser `Session`,
+- component refresh fragment,
+- secrets / API key loading,
+- hot-reload schema invalidation.
 
 ## `engine.py`
 
@@ -1166,19 +1089,19 @@ Main backend and runtime layer.
 
 Includes:
 
-* RAG pipeline,
-* model streaming,
-* memory handling,
-* citation engine,
-* PDF evidence mapping,
-* E5 access,
-* FAISS state,
-* persistence,
-* shared knowledge base,
-* session state,
-* uploads,
-* incremental snapshots,
-* concurrency and cancellation.
+- RAG pipeline,
+- model streaming,
+- memory handling,
+- citation engine,
+- PDF evidence mapping,
+- E5 access,
+- FAISS state,
+- persistence,
+- shared knowledge base,
+- session state,
+- uploads,
+- incremental snapshots,
+- concurrency and cancellation.
 
 ## `frontend.py`
 
@@ -1186,29 +1109,29 @@ Contains the custom component assets.
 
 Includes:
 
-* HTML shell,
-* full application styling,
-* Streamlit bridge,
-* optimistic send,
-* chat rendering,
-* telemetry,
-* source cards,
-* inline citations,
-* PDF viewer,
-* document navigation,
-* responsive behavior,
-* motion and interaction logic.
+- HTML shell,
+- full application styling,
+- Streamlit bridge,
+- optimistic send,
+- chat rendering,
+- telemetry,
+- source cards,
+- inline citations,
+- PDF viewer,
+- document navigation,
+- responsive behavior,
+- motion and interaction logic.
 
-\---
+---
 
-# 41\. Local Installation
+# 41. Local Installation
 
 ## Requirements
 
-* Python 3.12 recommended
-* OpenAI API key
-* Enough RAM to load `multilingual-e5-base`
-* Internet access on first launch if the E5 model is not already cached
+- Python 3.12 recommended
+- OpenAI API key
+- Enough RAM to load `multilingual-e5-base`
+- Internet access on first launch if the E5 model is not already cached
 
 Clone the repository:
 
@@ -1223,7 +1146,7 @@ Create a virtual environment:
 
 ```bash
 python -m venv .venv
-.venv\\Scripts\\activate
+.venv\Scripts\activate
 ```
 
 ### macOS / Linux
@@ -1239,9 +1162,9 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
-\---
+---
 
-# 42\. Configuration
+# 42. Configuration
 
 Create:
 
@@ -1254,25 +1177,25 @@ for local development.
 Example:
 
 ```toml
-OPENAI\_API\_KEY = "your-api-key"
+OPENAI_API_KEY = "your-api-key"
 ```
 
 Do not commit the real secrets file.
 
 The application can also read several runtime settings from environment variables.
 
-|Variable|Purpose|
-|-|-|
-|`OPENAI\_API\_KEY`|OpenAI API key|
-|`E5\_MODEL\_PATH`|Explicit local embedding-model path|
-|`E5\_MODEL\_NAME`|Hugging Face / Sentence Transformers model name|
-|`E5\_DEVICE`|`cpu`, `cuda`, etc.|
-|`E5\_NUM\_THREADS`|PyTorch CPU thread configuration|
-|`E5\_INTEROP\_THREADS`|PyTorch inter-op thread count|
-|`MAX\_API\_CONCURRENCY`|Maximum simultaneous API streams|
-|`MAX\_PDF\_PAGES`|PDF page-count limit|
-|`RESEARCH\_DATA\_DIR`|Persistent DocumentStore directory|
-|`DEFAULT\_PDF\_PATH`|Optional default PDF path|
+| Variable | Purpose |
+|---|---|
+| `OPENAI_API_KEY` | OpenAI API key |
+| `E5_MODEL_PATH` | Explicit local embedding-model path |
+| `E5_MODEL_NAME` | Hugging Face / Sentence Transformers model name |
+| `E5_DEVICE` | `cpu`, `cuda`, etc. |
+| `E5_NUM_THREADS` | PyTorch CPU thread configuration |
+| `E5_INTEROP_THREADS` | PyTorch inter-op thread count |
+| `MAX_API_CONCURRENCY` | Maximum simultaneous API streams |
+| `MAX_PDF_PAGES` | PDF page-count limit |
+| `RESEARCH_DATA_DIR` | Persistent DocumentStore directory |
+| `DEFAULT_PDF_PATH` | Optional default PDF path |
 
 If no local E5 path is found, the application can fall back to:
 
@@ -1280,9 +1203,9 @@ If no local E5 path is found, the application can fall back to:
 intfloat/multilingual-e5-base
 ```
 
-\---
+---
 
-# 43\. Run Locally
+# 43. Run Locally
 
 ```bash
 streamlit run app.py
@@ -1292,9 +1215,9 @@ The application opens in the browser through Streamlit.
 
 The custom interface itself is served as a Streamlit component.
 
-\---
+---
 
-# 44\. Streamlit Community Cloud
+# 44. Streamlit Community Cloud
 
 The repository is designed to be deployable with Streamlit Community Cloud.
 
@@ -1311,9 +1234,9 @@ A public deployment can run without a bundled `default.pdf`.
 
 In that configuration, the application starts with no active default document and waits for a PDF to be uploaded.
 
-\---
+---
 
-# 45\. Public Deployment Behavior
+# 45. Public Deployment Behavior
 
 The current public architecture intentionally uses a shared live document context.
 
@@ -1335,53 +1258,53 @@ This behavior is intentional in the current version.
 
 If per-user private document databases are desired, the knowledge-base ownership model would need to be changed.
 
-\---
+---
 
-# 46\. Community Cloud Persistence Note
+# 46. Community Cloud Persistence Note
 
 Local runtime storage on a managed cloud deployment should not automatically be assumed to be permanent.
 
 The application can rebuild or restore a default document when available, but durable persistence of arbitrary user-uploaded global PDFs is better handled by persistent external storage or a host with a persistent volume.
 
-The code already exposes `RESEARCH\_DATA\_DIR` so the `DocumentStore` location can be redirected without redesigning the RAG engine.
+The code already exposes `RESEARCH_DATA_DIR` so the `DocumentStore` location can be redirected without redesigning the RAG engine.
 
-\---
+---
 
-# 47\. Important Design Principles
+# 47. Important Design Principles
 
 The project follows several principles that explain many of its implementation choices.
 
-### 1\. Retrieval similarity is not proof
+### 1. Retrieval similarity is not proof
 
 A high vector score is useful for retrieval but is not presented as factual verification.
 
-### 2\. A model citation is a candidate
+### 2. A model citation is a candidate
 
 Citation metadata must survive independent checks before being treated as verified evidence.
 
-### 3\. Ambiguity should reduce certainty
+### 3. Ambiguity should reduce certainty
 
 When the system cannot reliably identify one evidence location, it prefers not to draw a precise highlight.
 
-### 4\. Document state should be immutable during a request
+### 4. Document state should be immutable during a request
 
 An in-flight chat should not silently switch to a newly uploaded PDF halfway through generation.
 
-### 5\. UI latency matters separately from model latency
+### 5. UI latency matters separately from model latency
 
 Optimistic send, early source publication, frame scheduling, and incremental DOM work improve perceived responsiveness even when model inference time does not change.
 
-### 6\. Shared resources should actually be shared
+### 6. Shared resources should actually be shared
 
 Embedding models and global document indexes should not be duplicated for every browser session.
 
-### 7\. Recovery must not duplicate expensive actions
+### 7. Recovery must not duplicate expensive actions
 
 Uncertain network acknowledgement is handled as a synchronization problem rather than automatically replaying a new model request.
 
-\---
+---
 
-# 48\. Evolution from the Original Prototype
+# 48. Evolution from the Original Prototype
 
 The original version of this project was primarily:
 
@@ -1462,89 +1385,89 @@ responsive / reduced-motion behavior
 
 So although the project still uses Parent–Child RAG and FAISS at its core, those components now represent only one layer of a much larger system.
 
-\---
+---
 
-# 49\. Current Limitations
+# 49. Current Limitations
 
 This is an advanced project, but it is not presented as a finished enterprise platform.
 
 Important current limitations include:
 
-* The backend is intentionally concentrated in a relatively large `engine.py`.
-* The custom frontend is also large and contains substantial hand-written browser state logic.
-* A comprehensive automated unit / integration / browser regression suite is still an important next step.
-* The shared global PDF behavior is intentional and is not equivalent to private per-user document storage.
-* A single-process shared knowledge base should not be assumed to remain globally consistent across multiple independent server replicas without an external coordination layer.
-* Local `DocumentStore` persistence depends on the persistence guarantees of the deployment environment.
-* Exact source verification can intentionally omit a citation when evidence is ambiguous.
-* Embedding throughput is ultimately bounded by the shared E5 model and available CPU / GPU resources.
+- The backend is intentionally concentrated in a relatively large `engine.py`.
+- The custom frontend is also large and contains substantial hand-written browser state logic.
+- A comprehensive automated unit / integration / browser regression suite is still an important next step.
+- The shared global PDF behavior is intentional and is not equivalent to private per-user document storage.
+- A single-process shared knowledge base should not be assumed to remain globally consistent across multiple independent server replicas without an external coordination layer.
+- Local `DocumentStore` persistence depends on the persistence guarantees of the deployment environment.
+- Exact source verification can intentionally omit a citation when evidence is ambiguous.
+- Embedding throughput is ultimately bounded by the shared E5 model and available CPU / GPU resources.
 
-\---
+---
 
-# 50\. Recommended Next Engineering Steps
+# 50. Recommended Next Engineering Steps
 
 Potential future work:
 
-* automated citation regression corpus,
-* pytest coverage for session / knowledge-base lifecycle,
-* concurrency and cancellation tests,
-* browser tests with Playwright,
-* load testing for many simultaneous Streamlit sessions,
-* structured logging / production observability,
-* external persistent object storage,
-* optional authentication and document ownership modes,
-* further splitting of `engine.py` into isolated packages,
-* extraction of the frontend into maintainable modules while preserving the current custom UI,
-* benchmark suite for retrieval, citation precision, source latency, and end-to-end response latency.
+- automated citation regression corpus,
+- pytest coverage for session / knowledge-base lifecycle,
+- concurrency and cancellation tests,
+- browser tests with Playwright,
+- load testing for many simultaneous Streamlit sessions,
+- structured logging / production observability,
+- external persistent object storage,
+- optional authentication and document ownership modes,
+- further splitting of `engine.py` into isolated packages,
+- extraction of the frontend into maintainable modules while preserving the current custom UI,
+- benchmark suite for retrieval, citation precision, source latency, and end-to-end response latency.
 
-\---
+---
 
-# 51\. Technology Stack
+# 51. Technology Stack
 
 ### Backend
 
-* Python
-* Streamlit
-* OpenAI API
-* Sentence Transformers
-* multilingual E5
-* FAISS
-* PyMuPDF
-* NumPy
-* PyTorch
-* Markdown-It
-* Bleach
-* Pillow
+- Python
+- Streamlit
+- OpenAI API
+- Sentence Transformers
+- multilingual E5
+- FAISS
+- PyMuPDF
+- NumPy
+- PyTorch
+- Markdown-It
+- Bleach
+- Pillow
 
 ### Frontend
 
-* Custom Streamlit Component
-* HTML
-* CSS
-* Vanilla JavaScript
-* CSS Highlight API
-* Canvas
-* DOM Range APIs
-* `Intl.Segmenter`
-* `requestAnimationFrame`
-* native `<dialog>` / browser interaction primitives
+- Custom Streamlit Component
+- HTML
+- CSS
+- Vanilla JavaScript
+- CSS Highlight API
+- Canvas
+- DOM Range APIs
+- `Intl.Segmenter`
+- `requestAnimationFrame`
+- native `<dialog>` / browser interaction primitives
 
 ### Storage / State
 
-* FAISS serialized index
-* JSON metadata
-* ZIP-based managed document package
-* SHA-256 integrity manifest
-* process-wide shared knowledge base
-* per-session temporary state
+- FAISS serialized index
+- JSON metadata
+- ZIP-based managed document package
+- SHA-256 integrity manifest
+- process-wide shared knowledge base
+- per-session temporary state
 
-\---
+---
 
-# 52\. Summary
+# 52. Summary
 
 Research Studio is a document intelligence application focused on one central idea:
 
-> \*\*An AI answer should not only be generated from a document — the user should be able to inspect how the answer connects back to the real evidence.\*\*
+> **An AI answer should not only be generated from a document — the user should be able to inspect how the answer connects back to the real evidence.**
 
 The project therefore treats retrieval, generation, citations, PDF evidence, browser rendering, multi-user state, and performance as parts of the same system.
 
@@ -1567,4 +1490,3 @@ it does not pretend that it can.
 ```
 
 That philosophy is what separates the current version from the original RAG prototype.
-
